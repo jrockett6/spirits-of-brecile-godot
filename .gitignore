@@ -1,6 +1,6 @@
+*/.DS_Store
 scala/.bloop
 scala/.bsp
-scala/.DS_Store
 scala/.metals
 scala/.vscode
 scala/project/metals.sbt
