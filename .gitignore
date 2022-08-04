@@ -1,0 +1,11 @@
+scala/.bloop
+scala/.bsp
+scala/.DS_Store
+scala/.metals
+scala/.vscode
+scala/project/metals.sbt
+scala/project/project
+scala/project/target
+scala/target/
+scala/leak.hprof.hwcache
+scala/leak.hprof
