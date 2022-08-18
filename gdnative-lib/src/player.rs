@@ -18,14 +18,14 @@ impl Default for Player {
     }
 }
 
-pub struct PlayerHandler {
-    pub player: Player,
-}
+impl Player {
+    fn new(_owner: &KinematicBody) -> Self {
+        Self::default()
+    }
 
-impl PlayerHandler {
     pub fn update_position(
-        &mut self,
-        body: Ref<KinematicBody>,
+        &self,
+        body: &KinematicBody,
         direction: Vector3,
         delta: f32,
     ) {
@@ -35,32 +35,31 @@ impl PlayerHandler {
             direction.normalized()
         };
 
-        let input_velocity = Vector3 {
-            x: normalized_direction.x * self.player.speed,
-            y: self.player.y_speed - self.player.fall_speed * delta,
-            z: normalized_direction.z * self.player.speed,
+        let velocity = Vector3 {
+            x: normalized_direction.x * self.speed,
+            y: self.y_speed - self.fall_speed * delta,
+            z: normalized_direction.z * self.speed,
         };
 
-        let actual_velocity: Vector3;
+        let velocity = body.move_and_slide(
+            velocity,
+            Vector3::UP,
+            false,
+            4,
+            0.785398,
+            true,
+        );
 
+        // self.y_speed = velocity.y;
+        // _owner.global_transform().origin
         // godot_print!(
         //     "before pos: {:?}",
         //     player.assume_safe().transform().origin
         // );
 
-        unsafe {
-            actual_velocity = body.assume_safe().move_and_slide(
-                input_velocity,
-                Vector3::UP,
-                false,
-                4,
-                0.785398,
-                true,
-            );
-        }
+        // unsafe {
+        // }
 
-        self.player.y_speed = actual_velocity.y;
-        
         // godot_print!("Player pos:   {:?}", self.position);
         // godot_print!(
         //     "after pos:  {:?}",

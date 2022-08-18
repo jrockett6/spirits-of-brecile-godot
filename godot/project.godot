@@ -9,19 +9,23 @@
 config_version=4
 
 _global_script_classes=[ {
-"base": "",
-"class": "ClientNetwork",
+"base": "Node",
+"class": "Server",
 "language": "NativeScript",
-"path": "res://player/ClientNetwork.gdns"
+"path": "res://server/Server.gdns"
 } ]
 _global_script_class_icons={
-"ClientNetwork": ""
+"Server": ""
 }
 
 [application]
 
 config/name="spirits-godot"
-run/main_scene="res://Main.tscn"
+run/main_scene="res://server/Server.tscn"
+
+[autoload]
+
+rust_panic_hook="*res://libs/rust_panic_hook.gd"
 
 [display]
 
@@ -31,6 +35,7 @@ window/size/height=1600
 [global]
 
 main=false
+log=false
 
 [input]
 
@@ -64,6 +69,10 @@ camera_turn={
 "events": [ Object(InputEventMouseButton,"resource_local_to_scene":false,"resource_name":"","device":0,"alt":false,"shift":false,"control":false,"meta":false,"command":false,"button_mask":0,"position":Vector2( 0, 0 ),"global_position":Vector2( 0, 0 ),"factor":1.0,"button_index":2,"pressed":false,"doubleclick":false,"script":null)
  ]
 }
+
+[logging]
+
+file_logging/enable_file_logging=true
 
 [physics]
 

@@ -9,7 +9,7 @@ var tmp_y_rotation = 0
 var prev_cursor_x = 0
 var prev_cursor_y = 0
 
-var client_network = ClientNetwork.new()
+#var client_network = ClientNetwork.new()
 
 func _ready():
 	Input.set_use_accumulated_input(false)
@@ -28,7 +28,7 @@ func _physics_process(delta):
 	if Input.is_action_pressed("move_right"):
 		direction += -global_transform.basis.x
 	
-	client_network.handle_input($".", direction, delta)
+#	client_network.handle_input($".", direction, delta)
 	
 	$Label.text = \
 	"fps: " + String(Engine.get_frames_per_second())
