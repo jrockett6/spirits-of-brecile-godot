@@ -1,6 +1,7 @@
 mod client_network;
-mod player;
-mod server;
+mod client;
+pub mod player;
+pub mod server;
 
 use gdnative::prelude::*;
 use server::Server;

@@ -1,4 +1,25 @@
 use gdnative::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(remote = "Vector3")]
+pub struct Vector3Def {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct InputState {
+    #[serde(with = "Vector3Def")]
+    pub direction: Vector3,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct OutputState {
+    #[serde(with = "Vector3Def")]
+    pub next_pos: Vector3,
+}
 
 pub struct Player {
     y_speed: f32,
@@ -27,8 +48,7 @@ impl Player {
         &self,
         body: &KinematicBody,
         direction: Vector3,
-        delta: f32,
-    ) {
+    ) -> Vector3 {
         let normalized_direction = if direction == Vector3::ZERO {
             direction
         } else {
@@ -37,7 +57,7 @@ impl Player {
 
         let velocity = Vector3 {
             x: normalized_direction.x * self.speed,
-            y: self.y_speed - self.fall_speed * delta,
+            y: self.y_speed - self.fall_speed * 0.0333,
             z: normalized_direction.z * self.speed,
         };
 
@@ -49,6 +69,8 @@ impl Player {
             0.785398,
             true,
         );
+
+        body.global_transform().origin
 
         // self.y_speed = velocity.y;
         // _owner.global_transform().origin

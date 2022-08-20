@@ -27,11 +27,6 @@ run/main_scene="res://server/Server.tscn"
 
 rust_panic_hook="*res://libs/rust_panic_hook.gd"
 
-[display]
-
-window/size/width=2560
-window/size/height=1600
-
 [global]
 
 main=false
@@ -76,7 +71,7 @@ file_logging/enable_file_logging=true
 
 [physics]
 
-common/physics_fps=50
+common/physics_fps=30
 common/enable_pause_aware_picking=true
 
 [rendering]
