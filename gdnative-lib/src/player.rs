@@ -15,7 +15,7 @@ pub struct InputState {
     pub direction: Vector3,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OutputState {
     #[serde(with = "Vector3Def")]
     pub next_pos: Vector3,
@@ -46,7 +46,7 @@ impl Player {
 
     pub fn update_position(
         &self,
-        body: &KinematicBody,
+        body: Ref<KinematicBody, Unique>,
         direction: Vector3,
     ) -> Vector3 {
         let normalized_direction = if direction == Vector3::ZERO {
@@ -54,6 +54,11 @@ impl Player {
         } else {
             direction.normalized()
         };
+
+        godot_print!(
+            "[Player::update_position] Initial location: {:?}",
+            body.global_transform().origin
+        );
 
         let velocity = Vector3 {
             x: normalized_direction.x * self.speed,
@@ -68,6 +73,16 @@ impl Player {
             4,
             0.785398,
             true,
+        );
+
+        godot_print!(
+            "[Player::update_position] Applied velocity: {:?}",
+            velocity
+        );
+
+        godot_print!(
+            "[Player::update_position] Updated location: {:?}",
+            body.global_transform().origin
         );
 
         body.global_transform().origin

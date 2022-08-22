@@ -1,9 +1,8 @@
-use futures::prelude::*;
-use serde_json::{json, Value};
-use tokio::{io, net::TcpStream};
+use gdnative_lib::server::Connection;
+use serde_json::Value;
+use tokio::net::TcpStream;
 use tokio_serde::formats::*;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
-use gdnative_lib::server::Connection;
 
 #[derive(Debug)]
 pub struct TestClient;
