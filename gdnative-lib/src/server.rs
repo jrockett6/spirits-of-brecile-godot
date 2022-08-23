@@ -6,10 +6,11 @@ use tokio::{
     io,
     net::{TcpListener, TcpStream},
     runtime::{Builder, Runtime},
-    sync::broadcast,
+    sync::{broadcast, watch::channel},
 };
 use tokio_serde::{formats::*, SymmetricallyFramed};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
+use tracing::{debug, error, event, info, warn, Level};
 
 use crate::player::{InputState, OutputState};
 use crate::server::player_manager::{
@@ -24,11 +25,15 @@ pub type Connection = SymmetricallyFramed<
     Json<Value, Value>,
 >;
 
-#[derive(Debug)]
-enum ConnectionCommand {
-    Send { pos: Vector3 },
-    Recv { direction: Vector3 },
-}
+pub type ServerSubscriber = tracing_subscriber::FmtSubscriber<
+    tracing_subscriber::fmt::format::JsonFields,
+    tracing_subscriber::fmt::format::Format<
+        tracing_subscriber::fmt::format::Json,
+        (),
+    >,
+    tracing::metadata::LevelFilter,
+    tracing_appender::non_blocking::NonBlocking,
+>;
 
 #[derive(NativeClass)]
 #[inherit(Node)]
@@ -59,9 +64,15 @@ impl Server {
 
     #[export]
     fn _ready(&mut self, _owner: &Node) {
-        godot_print!("SERVER!!");
+        godot_print!("SERVER READY");
+        godot_print!(
+            "Thread: {:?}, {:?}",
+            std::thread::current().id(),
+            std::thread::current().name()
+        );
 
         // Create state update command/notify channels
+        // Command channel is broadcast because mpsc doesn't let you query for queue length.
         let (tx_command, rx_command) =
             broadcast::channel::<PlayerUpdateCommand>(1024);
         let (tx_notification, _) =
@@ -72,7 +83,6 @@ impl Server {
             Some(Arc::clone(&tx_notification));
         self.player_manager.rx_command = Some(rx_command);
 
-        // Spawn connection task
         self.connection_runtime
             .spawn(Server::listen(tx_command, Arc::clone(&tx_notification)));
 
@@ -125,13 +135,38 @@ impl Server {
         tx_command: broadcast::Sender<PlayerUpdateCommand>,
         tx_notification: Arc<broadcast::Sender<PlayerUpdateNotification>>,
     ) -> io::Result<()> {
+        // Configure tracing. Currently done here to avoid having the subscriber dropped.
+        let file_appender = tracing_appender::rolling::minutely(
+            "/Users/jrockett/workspace/spirits-of-brecile/gdnative-lib/target/tmp",
+            "server.log",
+        );
+
+        let (non_blocking, _guard) =
+            tracing_appender::non_blocking(file_appender);
+
+        let subscriber = tracing_subscriber::fmt()
+            // .json()
+            // .flatten_event(true)
+            // .with_current_span(true)
+            // .with_span_list(false)
+            // .pretty()
+            // .with_thread_names(true)
+            .with_target(false)
+            .with_thread_ids(true)
+            .with_writer(non_blocking)
+            .with_max_level(Level::DEBUG)
+            .without_time()
+            .finish();
+
+        tracing::subscriber::set_global_default(subscriber).unwrap();
+
+        // Listen for client connections
         let listener = TcpListener::bind("127.0.0.1:6142").await?;
         let mut id = 1;
 
         // TODO: add maximum number of accepted clients here
         loop {
             let (socket, _) = listener.accept().await?;
-            godot_print!("[Server::listen] New player {} connecting...", id);
             Server::connect_player(
                 id,
                 socket,
@@ -143,19 +178,26 @@ impl Server {
         }
     }
 
+    #[tracing::instrument(
+        level = "debug"
+        name = "Server::connect_player"
+        skip(socket, tx_command, rx_notification),
+    )]
     fn connect_player(
         id: i64,
         socket: TcpStream,
         tx_command: broadcast::Sender<PlayerUpdateCommand>,
-        mut rx_notification: broadcast::Receiver<PlayerUpdateNotification>,
+        rx_notification: broadcast::Receiver<PlayerUpdateNotification>,
     ) {
+        info!("player {} connected", id);
+
         // Get framed and serialized sink/stream
         let length_delimited = Framed::new(socket, LengthDelimitedCodec::new());
         let serialized = tokio_serde::SymmetricallyFramed::new(
             length_delimited,
             SymmetricalJson::<Value>::default(),
         );
-        let (mut sink, mut stream) = serialized.split();
+        let (sink, stream) = serialized.split();
 
         // Spawn player on main thread
         tx_command
@@ -163,45 +205,77 @@ impl Server {
             .unwrap();
 
         // Recieve input commands, and send to main physics loop
-        tokio::spawn(async move {
-            while let Some(msg) = stream.try_next().await.unwrap() {
-                let input = serde_json::from_value::<InputState>(msg).unwrap();
-                tx_command
-                    .send(PlayerUpdateCommand::Update {
-                        id: id,
-                        direction: input.direction,
-                    })
-                    .unwrap();
-            }
-        });
+        tokio::spawn(Self::recv_task(id, stream, tx_command));
 
         // Recieve physics loop updates, send to client
-        tokio::spawn(async move {
-            while let Ok(update) = rx_notification.recv().await {
-                match update {
-                    PlayerUpdateNotification::Create { id } => {
-                        godot_print!(
-                            "[Server::connect_player] player {} created!!",
-                            id
-                        )
-                    }
-                    PlayerUpdateNotification::Destroy { id } => {
-                        godot_print!(
-                            "[Server::connect_player] player {} destroyed!!",
-                            id
-                        )
-                    }
-                    PlayerUpdateNotification::Update { id, output_state } => {
-                        let result =
-                            serde_json::to_value(output_state).unwrap();
+        tokio::spawn(Self::send_task(id, sink, rx_notification));
 
-                        sink.send(result).await.unwrap();
-                    }
-                };
-            }
-        });
         // TODO:
         //  - handshake?
         //  - broadcast this update to all player tasks listening
+    }
+
+    #[tracing::instrument(
+        level = "debug"
+        name = "Server::recv_task"
+        skip(stream, tx_command),
+    )]
+    async fn recv_task(
+        id: i64,
+        mut stream: stream::SplitStream<Connection>,
+        tx_command: broadcast::Sender<PlayerUpdateCommand>,
+    ) {
+        while let Some(msg) = stream.try_next().await.unwrap() {
+            let input = serde_json::from_value::<InputState>(msg).unwrap();
+            debug!(
+                "got player {} input: {:?}, sending to PlayerManager",
+                id, input
+            );
+
+            tx_command
+                .send(PlayerUpdateCommand::Update {
+                    id: id,
+                    direction: input.direction,
+                })
+                .unwrap();
+        }
+        info!("client closed channel, dropping recv_task");
+        tx_command
+            .send(PlayerUpdateCommand::Destroy { id: id })
+            .unwrap();
+    }
+
+    #[tracing::instrument(
+        level = "debug"
+        name = "Server::send_task"
+        skip(sink, rx_notification),
+    )]
+    async fn send_task(
+        _id: i64,
+        mut sink: stream::SplitSink<Connection, Value>,
+        mut rx_notification: broadcast::Receiver<PlayerUpdateNotification>,
+    ) {
+        while let Ok(update) = rx_notification.recv().await {
+            match update {
+                PlayerUpdateNotification::Create { id } => {
+                    debug!("created player {}", id)
+                }
+                PlayerUpdateNotification::Update { id, output_state } => {
+                    debug!("updated player {}: {:?}", id, output_state);
+                    let result = serde_json::to_value(output_state).unwrap();
+                    match sink.send(result).await {
+                        Ok(()) => (),
+                        Err(e) => warn!("{}", e),
+                    }
+                }
+                PlayerUpdateNotification::Destroy { id } => {
+                    debug!("destroyed player {}", id);
+                    if id == _id {
+                        break;
+                    }
+                }
+            };
+        }
+        info!("player was destroyed (or got RecvError), dropping send_task");
     }
 }

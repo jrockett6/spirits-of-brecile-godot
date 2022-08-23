@@ -21,6 +21,7 @@ pub struct OutputState {
     pub next_pos: Vector3,
 }
 
+#[derive(Debug)]
 pub struct Player {
     y_speed: f32,
 

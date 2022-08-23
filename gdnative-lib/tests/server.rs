@@ -1,3 +1,6 @@
+use std::thread;
+use std::time::Duration;
+
 use futures::prelude::*;
 use gdnative::prelude::Vector3;
 use gdnative_lib::{player::OutputState, server::Connection};
@@ -22,6 +25,8 @@ fn full_update_once() {
             conn.try_next().await.unwrap().unwrap(),
         )
         .unwrap();
+
+        conn.close().await.unwrap();
 
         assert_eq!(
             updated_state.next_pos,
@@ -71,6 +76,9 @@ fn full_update_twice() {
                 z: 0.9428091
             }
         );
+
+        // Sleep to makes sure client sees response from server
+        thread::sleep(Duration::from_millis(500));
     });
 }
 

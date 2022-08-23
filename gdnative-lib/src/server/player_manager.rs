@@ -1,6 +1,7 @@
 use gdnative::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
+use tracing::debug;
 
 use crate::player::{OutputState, Player};
 
@@ -19,6 +20,7 @@ pub enum PlayerUpdateNotification {
 }
 
 // Attach our player state with it's physics body
+#[derive(Debug)]
 struct ServerPlayer {
     player: Player,
     body_idx: i64,
@@ -27,6 +29,7 @@ struct ServerPlayer {
 // We can't close over `self` in _physics_process when calling player state update functions,
 // so we abstract the functions out to this class.
 // See: https://stackoverflow.com/questions/64921625/closure-requires-unique-access-to-self-but-it-is-already-borrowed#comment114785595_64921799
+#[derive(Debug)]
 pub struct PlayerManager {
     body_idx: i64,
     players: HashMap<i64, ServerPlayer>,
@@ -47,6 +50,11 @@ impl Default for PlayerManager {
 }
 
 impl PlayerManager {
+    #[tracing::instrument(
+        level = "debug"
+        name = "PlayerManager::spawn_player"
+        skip(self, owner),
+    )]
     pub fn spawn_player(&mut self, owner: &Node, id: i64) {
         // Add body to scene tree, and player to PlayerManager
         owner.add_child(KinematicBody::new(), false);
@@ -59,9 +67,9 @@ impl PlayerManager {
         );
         self.body_idx += 1;
 
-        for child in &owner.get_children() {
-            godot_print!("child: {}", child);
-        }
+        // for child in &owner.get_children() {
+        //     godot_print!("child: {}", child);
+        // }
 
         self.tx_notification
             .as_ref()
@@ -69,9 +77,14 @@ impl PlayerManager {
             .send(PlayerUpdateNotification::Create { id: id })
             .unwrap();
 
-        godot_print!("[PlayerManager::spawn_player] Player spawned!!");
+        debug!("player spawned!!");
     }
 
+    #[tracing::instrument(
+        level = "debug"
+        name = "PlayerManager::update_player"
+        skip(self, owner, direction),
+    )]
     pub fn update_player(&self, owner: &Node, id: i64, direction: Vector3) {
         let player = self.players.get(&id).unwrap();
 
@@ -96,12 +109,14 @@ impl PlayerManager {
             })
             .unwrap();
 
-        godot_print!(
-            "[PlayerManager::update_player] Player updated!! direction: {:?}",
-            direction
-        );
+        debug!("player updated with input direction: {:?}", direction);
     }
 
+    #[tracing::instrument(
+        level = "debug"
+        name = "PlayerManager::disconnect_player"
+        skip(self),
+    )]
     pub fn disconnect_player(&mut self, id: i64) {
         // Free physics body memory, and remove player entry
         // let body = &self.players.get(&id).unwrap().body.free; // TODO: Does engine free for us?
@@ -113,8 +128,6 @@ impl PlayerManager {
             .send(PlayerUpdateNotification::Destroy { id: id })
             .unwrap();
 
-        godot_print!(
-            "[PlayerManager::disconnect_player] Player disconnected!!"
-        );
+        debug!("player {} disconnected", id);
     }
 }
