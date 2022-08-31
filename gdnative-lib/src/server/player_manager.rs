@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::broadcast;
 use tracing::debug;
 
-use crate::player::{OutputState, Player};
+use crate::character::OutputState;
 
 #[derive(Clone, Debug)]
 pub enum PlayerUpdateCommand {
@@ -22,7 +22,7 @@ pub enum PlayerUpdateNotification {
 // Attach our player state with it's physics body
 #[derive(Debug)]
 struct ServerPlayer {
-    player: Player,
+    // player: Character,
     body_idx: i64,
 }
 
@@ -61,7 +61,7 @@ impl PlayerManager {
         self.players.insert(
             id,
             ServerPlayer {
-                player: Player::default(),
+                // player: Character::default(),
                 body_idx: self.body_idx,
             },
         );
@@ -85,7 +85,12 @@ impl PlayerManager {
         name = "PlayerManager::update_player"
         skip(self, owner, direction),
     )]
-    pub fn update_player(&self, owner: &Node, id: i64, direction: Vector3) {
+    pub fn update_player(
+        &self,
+        owner: &Node,
+        id: i64,
+        direction: Vector3,
+    ) {
         let player = self.players.get(&id).unwrap();
 
         let next_pos;
@@ -97,7 +102,8 @@ impl PlayerManager {
                 .try_cast::<KinematicBody>()
                 .unwrap();
 
-            next_pos = player.player.update_position(body, direction);
+            next_pos = Vector3::default();
+            // next_pos = player.player.update_position(body, direction);
         }
 
         self.tx_notification
@@ -109,7 +115,10 @@ impl PlayerManager {
             })
             .unwrap();
 
-        debug!("player updated with input direction: {:?}", direction);
+        debug!(
+            "player updated with input direction: {:?}",
+            direction
+        );
     }
 
     #[tracing::instrument(

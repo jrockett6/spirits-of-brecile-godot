@@ -6,13 +6,13 @@ use tokio::{
     io,
     net::{TcpListener, TcpStream},
     runtime::{Builder, Runtime},
-    sync::{broadcast, watch::channel},
+    sync::{broadcast},
 };
 use tokio_serde::{formats::*, SymmetricallyFramed};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
-use tracing::{debug, error, event, info, warn, Level};
+use tracing::{debug, info, warn, Level};
 
-use crate::player::{InputState, OutputState};
+use crate::character::{InputState, OutputState};
 use crate::server::player_manager::{
     PlayerManager, PlayerUpdateCommand, PlayerUpdateNotification,
 };
@@ -212,7 +212,7 @@ impl Server {
 
         // TODO:
         //  - handshake?
-        //  - broadcast this update to all player tasks listening
+        //  - write a multi-client test
     }
 
     #[tracing::instrument(

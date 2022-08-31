@@ -1,0 +1,20 @@
+[remap]
+
+importer="wavefront_obj"
+type="Mesh"
+path="res://.import/grass-blade.obj-2ed33087a286e76a282ff722ef6da847.mesh"
+
+[deps]
+
+files=[ "res://.import/grass-blade.obj-2ed33087a286e76a282ff722ef6da847.mesh" ]
+
+source_file="res://assets/grass-blade.obj"
+dest_files=[ "res://.import/grass-blade.obj-2ed33087a286e76a282ff722ef6da847.mesh", "res://.import/grass-blade.obj-2ed33087a286e76a282ff722ef6da847.mesh" ]
+
+[params]
+
+generate_tangents=true
+scale_mesh=Vector3( 1, 1, 1 )
+offset_mesh=Vector3( 0, 0, 0 )
+octahedral_compression=true
+optimize_mesh_flags=4286

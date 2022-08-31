@@ -1,5 +1,5 @@
 use gdnative::prelude::Vector3;
-use gdnative_lib::player::InputState;
+use gdnative_lib::character::InputState;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

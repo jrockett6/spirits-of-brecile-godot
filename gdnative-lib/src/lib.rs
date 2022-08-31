@@ -1,15 +1,20 @@
-mod client;
+pub mod character;
+mod input;
+mod movement;
 pub mod player;
 pub mod server;
 
 use gdnative::prelude::*;
 use server::Server;
 
+use crate::player::Player;
+
 // Function that registers all exposed classes to Godot
 fn init(handle: InitHandle) {
     godot_print!("gdnative init...");
     init_panic_hook();
 
+    handle.add_class::<Player>();
     handle.add_class::<Server>();
 }
 
@@ -37,14 +42,22 @@ pub fn init_panic_hook() {
 
         let error_message;
         if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
-            error_message =
-                format!("[RUST] {}: panic occurred: {:?}", loc_string, s);
-        } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
-            error_message =
-                format!("[RUST] {}: panic occurred: {:?}", loc_string, s);
+            error_message = format!(
+                "[RUST] {}: panic occurred: {:?}",
+                loc_string, s
+            );
+        } else if let Some(s) =
+            panic_info.payload().downcast_ref::<String>()
+        {
+            error_message = format!(
+                "[RUST] {}: panic occurred: {:?}",
+                loc_string, s
+            );
         } else {
-            error_message =
-                format!("[RUST] {}: unknown panic occurred", loc_string);
+            error_message = format!(
+                "[RUST] {}: unknown panic occurred",
+                loc_string
+            );
         }
         godot_error!("{}", error_message);
         // Uncomment the following line if backtrace crate is included as a dependency
@@ -52,13 +65,15 @@ pub fn init_panic_hook() {
         (*(old_hook.as_ref()))(panic_info);
 
         unsafe {
-            if let Some(gd_panic_hook) = gdnative::api::utils::autoload::<
-                gdnative::api::Node,
-            >("rust_panic_hook")
+            if let Some(gd_panic_hook) =
+                gdnative::api::utils::autoload::<gdnative::api::Node>(
+                    "rust_panic_hook",
+                )
             {
                 gd_panic_hook.call(
                     "rust_panic_hook",
-                    &[GodotString::from_str(error_message).to_variant()],
+                    &[GodotString::from_str(error_message)
+                        .to_variant()],
                 );
             }
         }

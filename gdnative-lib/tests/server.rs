@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use futures::prelude::*;
 use gdnative::prelude::Vector3;
-use gdnative_lib::{player::OutputState, server::Connection};
+use gdnative_lib::{character::OutputState, server::Connection};
 
 use crate::test_client::TestClient;
 use crate::test_input::TestInput;

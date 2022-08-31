@@ -1,107 +1,70 @@
+use bevy_ecs::prelude::*;
 use gdnative::prelude::*;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(remote = "Vector3")]
-pub struct Vector3Def {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-}
+use crate::{character::Body, input::handle_input, movement::Speed};
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct InputState {
-    #[serde(with = "Vector3Def")]
-    pub direction: Vector3,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OutputState {
-    #[serde(with = "Vector3Def")]
-    pub next_pos: Vector3,
-}
-
-#[derive(Debug)]
+#[derive(Default, NativeClass)]
+#[inherit(KinematicBody)]
 pub struct Player {
-    y_speed: f32,
-
-    //Constants
-    pub speed: f32,
-    pub fall_speed: f32,
-}
-
-impl Default for Player {
-    fn default() -> Self {
-        Player {
-            y_speed: 0.0,
-            speed: 20.0,
-            fall_speed: 70.0,
-        }
-    }
+    schedule: Schedule,
+    world: World,
 }
 
 impl Player {
     fn new(_owner: &KinematicBody) -> Self {
-        Self::default()
-    }
-
-    pub fn update_position(
-        &self,
-        body: Ref<KinematicBody, Unique>,
-        direction: Vector3,
-    ) -> Vector3 {
-        let normalized_direction = if direction == Vector3::ZERO {
-            direction
-        } else {
-            direction.normalized()
-        };
-
-        godot_print!(
-            "[Player::update_position] Initial location: {:?}",
-            body.global_transform().origin
-        );
-
-        let velocity = Vector3 {
-            x: normalized_direction.x * self.speed,
-            y: self.y_speed - self.fall_speed * 0.0333,
-            z: normalized_direction.z * self.speed,
-        };
-
-        let velocity = body.move_and_slide(
-            velocity,
-            Vector3::UP,
-            false,
-            4,
-            0.785398,
-            true,
-        );
-
-        godot_print!(
-            "[Player::update_position] Applied velocity: {:?}",
-            velocity
-        );
-
-        godot_print!(
-            "[Player::update_position] Updated location: {:?}",
-            body.global_transform().origin
-        );
-
-        body.global_transform().origin
-
-        // self.y_speed = velocity.y;
-        // _owner.global_transform().origin
-        // godot_print!(
-        //     "before pos: {:?}",
-        //     player.assume_safe().transform().origin
-        // );
-
-        // unsafe {
-        // }
-
-        // godot_print!("Player pos:   {:?}", self.position);
-        // godot_print!(
-        //     "after pos:  {:?}",
-        //     player.assume_safe().transform().origin + vel
-        // );
+        Self {
+            schedule: Schedule::default(),
+            world: World::new(),
+        }
     }
 }
+
+#[methods]
+impl Player {
+    #[export]
+    fn _ready(&mut self, owner: &KinematicBody) {
+        godot_print!("Player ready!!");
+
+        // Spawn a player entity, with Speed and Body components
+        self.world.spawn().insert(Speed::default()).insert(unsafe {
+            Body {
+                body: owner.assume_shared(),
+            }
+        });
+
+        self.schedule.add_stage(
+            "update",
+            SystemStage::parallel().with_system(handle_input),
+        );
+    }
+
+    #[export]
+    fn _physics_process(
+        &mut self,
+        _owner: &KinematicBody,
+        _delta: f32,
+    ) {
+        self.schedule.run(&mut self.world)
+    }
+}
+
+// fn init_ecs() {
+//     // Create a new empty World to hold our Entities and Components
+//     let mut world = World::new();
+
+//     // Spawn an entity with Position and Velocity components
+//     world.spawn();
+//     // .insert(Dama { x: 0.0, y: 0.0 })
+//     // .insert(Velocity { x: 1.0, y: 0.0 });
+
+//     // Create a new Schedule, which defines an execution strategy for Systems
+//     let mut schedule = Schedule::default();
+
+//     // Add a Stage to our schedule. Each Stage in a schedule runs all of its systems
+//     // before moving on to the next Stage
+//     schedule.add_stage("update", SystemStage::;
+//     // .with_system(movement));
+
+//     // Run the schedule once. If your app has a "loop", you would run this once per loop
+//     schedule.run(&mut world);
+// }
